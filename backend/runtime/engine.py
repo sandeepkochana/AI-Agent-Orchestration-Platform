@@ -167,7 +167,7 @@ class WorkflowRunner:
             self._runners[agent_id] = AgentRunner(agent, self.ws, self.db)
         return self._runners[agent_id]
 
-    def _build_graph(self, execution_id: str):
+    async def _build_graph(self, execution_id: str):
         nodes = self.workflow.nodes   # [{id, type, data: {agent_id, label}}, ...]
         edges = self.workflow.edges   # [{source, target, ...}]
 
@@ -249,7 +249,7 @@ class WorkflowRunner:
         return graph.compile()
 
     async def run(self, input_message: str, execution_id: str) -> dict:
-        compiled = self._build_graph(execution_id)
+        compiled = await self._build_graph(execution_id)
         initial_state: WorkflowState = {
             "messages": [HumanMessage(content=input_message)],
             "current_agent": "",

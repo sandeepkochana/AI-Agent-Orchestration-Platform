@@ -119,7 +119,7 @@ class ExecutionLogResponse(BaseModel):
     agent_name: str
     log_type: str
     content: str
-    metadata: Dict[str, Any]
+    extra_data: Dict[str, Any]
     timestamp: datetime
 
     class Config:
@@ -135,7 +135,7 @@ class MessageResponse(BaseModel):
     direction: str
     content: str
     is_read: bool
-    metadata: Dict[str, Any]
+    extra_data: Dict[str, Any]
     created_at: datetime
 
     class Config:

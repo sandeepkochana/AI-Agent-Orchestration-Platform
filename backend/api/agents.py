@@ -99,7 +99,7 @@ async def run_agent(agent_id: str, payload: RunAgentRequest, db: AsyncSession = 
         agent_name=agent.name,
         log_type="message",
         content=result["output"],
-        metadata={"tokens": result["tokens"], "cost": result["cost"]},
+        extra_data={"tokens": result["tokens"], "cost": result["cost"]},
     )
     db.add(log)
     await db.commit()

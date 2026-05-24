@@ -70,7 +70,7 @@ export interface ExecLog {
   agent_name: string
   log_type: string
   content: string
-  metadata: Record<string, unknown>
+  extra_data: Record<string, unknown>
   timestamp: string
 }
 
@@ -83,7 +83,7 @@ export interface ChannelMessage {
   direction: string
   content: string
   is_read: boolean
-  metadata: Record<string, unknown>
+  extra_data: Record<string, unknown>
   created_at: string
 }
 
