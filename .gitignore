@@ -34,3 +34,6 @@ Thumbs.db
 
 # Logs
 *.log
+demo/demo.mov
+demo/*.mov
+demo/*.mp4
