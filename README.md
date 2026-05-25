@@ -4,6 +4,16 @@ A full-stack platform to create, configure, and orchestrate collaborative AI age
 
 ---
 
+## Demo
+
+<!-- Replace the line below with your hosted link (YouTube, Loom, etc.)
+     or drop demo.mp4 / demo.gif into the demo/ folder and update the path. -->
+
+> 🎬 **Recording link:** _TODO — add link here_  
+> See [`demo/README.md`](demo/README.md) for what to record and accepted formats.
+
+---
+
 ## Architecture Diagram
 
 ```
