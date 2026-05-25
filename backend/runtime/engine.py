@@ -315,19 +315,43 @@ class WorkflowRunner:
 
         async def make_agent_node(node_id: str, agent_id: str):
             runner = self._get_runner(agent_id)
+            agent_name = self.agents[agent_id].name
 
             async def node_fn(state: WorkflowState) -> WorkflowState:
                 msgs = state.get("messages", [])
-                last_human = next(
-                    (m.content for m in reversed(msgs) if isinstance(m, HumanMessage)), ""
-                )
+                # Use the last message in state as input — this gives each
+                # downstream agent the previous agent's output rather than
+                # always replaying the original human prompt.
+                last_input = msgs[-1].content if msgs else ""
+
                 result = await runner.run(
-                    last_human, state["execution_id"],
+                    last_input, state["execution_id"],
                     thread_id=state["execution_id"]
                 )
+
+                # Persist a per-step execution log so the Monitor and metrics
+                # can see individual agent contributions.
+                if self.db_factory:
+                    try:
+                        from models.execution import ExecutionLog
+                        async with self.db_factory() as db:
+                            db.add(ExecutionLog(
+                                execution_id=state["execution_id"],
+                                agent_id=agent_id,
+                                agent_name=agent_name,
+                                log_type="message",
+                                content=result["output"],
+                                extra_data={
+                                    "tokens": result["tokens"],
+                                    "cost":   result["cost"],
+                                },
+                            ))
+                            await db.commit()
+                    except Exception as e:
+                        logger.warning(f"Failed to persist workflow step log: {e}")
+
                 return {
-                    "messages": [AIMessage(content=result["output"],
-                                           name=self.agents[agent_id].name)],
+                    "messages": [AIMessage(content=result["output"], name=agent_name)],
                     "current_agent": agent_id,
                     "metadata": {
                         **state.get("metadata", {}),
