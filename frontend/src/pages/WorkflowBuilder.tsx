@@ -5,14 +5,13 @@ import {
   type Connection,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Plus, Save, Play, Trash2, GitBranch, LayoutTemplate } from 'lucide-react'
+import { Plus, Save, Play, GitBranch, LayoutTemplate, GitFork, X } from 'lucide-react'
 import { workflowApi, agentApi } from '../api/client'
 import type { Workflow, Agent } from '../api/client'
 import { nodeTypes } from '../components/WorkflowNodes'
 import toast from 'react-hot-toast'
-import { v4 as uuid } from 'crypto'
 
-// Simple UUID shim
+// Simple ID generator
 const genId = () => Math.random().toString(36).slice(2)
 
 export default function WorkflowBuilderPage() {
@@ -25,8 +24,16 @@ export default function WorkflowBuilderPage() {
   const [description, setDescription] = useState('')
   const [running, setRunning] = useState(false)
   const [runInput, setRunInput] = useState('')
+  const [runOutput, setRunOutput] = useState<{ output: string; tokens: number } | null>(null)
   const [templates, setTemplates] = useState<unknown[]>([])
   const [showTemplates, setShowTemplates] = useState(false)
+
+  // ── Condition node modal ────────────────────────────────────────────────────
+  const [showConditionModal, setShowConditionModal] = useState(false)
+  const [conditionDraft, setConditionDraft] = useState({
+    label: 'Quality Check',
+    condition_prompt: '',
+  })
 
   useEffect(() => {
     workflowApi.list().then(setWorkflows)
@@ -40,6 +47,7 @@ export default function WorkflowBuilderPage() {
     setDescription(wf.description)
     setNodes(wf.nodes as never[])
     setEdges(wf.edges as never[])
+    setRunOutput(null)
   }
 
   const newWorkflow = () => {
@@ -51,21 +59,28 @@ export default function WorkflowBuilderPage() {
       { id: 'end-1', type: 'end', position: { x: 700, y: 200 }, data: { label: 'End' } },
     ] as never[])
     setEdges([])
+    setRunOutput(null)
   }
 
-  const addConditionNode = () => {
-    const label = window.prompt('Condition label (e.g. "Quality check")?', 'Condition') ?? 'Condition'
-    const condition_prompt = window.prompt(
-      'Condition for the LLM to evaluate (e.g. "Is the response comprehensive and well-structured?")',
-      'Is the previous output complete and satisfactory?'
-    ) ?? 'Is the previous output complete and satisfactory?'
+  // Opens the modal; actual node creation happens in confirmConditionNode
+  const openConditionModal = () => {
+    setConditionDraft({ label: 'Quality Check', condition_prompt: '' })
+    setShowConditionModal(true)
+  }
+
+  const confirmConditionNode = () => {
     const id = `condition-${genId()}`
     setNodes(ns => [...ns, {
       id,
       type: 'condition',
       position: { x: 350 + Math.random() * 200, y: 150 + Math.random() * 100 },
-      data: { label, condition_prompt },
+      data: {
+        label: conditionDraft.label,
+        condition_prompt: conditionDraft.condition_prompt,
+      },
     } as never])
+    setShowConditionModal(false)
+    toast.success('Condition node added — connect the green (T) and red (F) handles.')
   }
 
   const addAgentNode = (agent: Agent) => {
@@ -108,14 +123,14 @@ export default function WorkflowBuilderPage() {
 
   const run = async () => {
     if (!selected) { toast.error('Save the workflow first'); return }
-    const input = runInput || prompt('Input message for workflow:')
-    if (!input) return
+    if (!runInput.trim()) { toast.error('Enter an input message below the toolbar'); return }
     setRunning(true)
+    setRunOutput(null)
     try {
-      const result = await workflowApi.run(selected.id, input)
-      toast.success(`Completed! ${result.tokens} tokens`)
-      alert(`Output:\n\n${result.output}`)
-    } catch (e: unknown) {
+      const result = await workflowApi.run(selected.id, runInput)
+      setRunOutput({ output: result.output, tokens: result.tokens })
+      toast.success(`Completed · ${result.tokens} tokens`)
+    } catch {
       toast.error('Workflow run failed')
     } finally {
       setRunning(false)
@@ -129,12 +144,72 @@ export default function WorkflowBuilderPage() {
     setNodes(tpl.nodes as never[])
     setEdges(tpl.edges as never[])
     setShowTemplates(false)
+    setRunOutput(null)
     toast.success(`Template "${tpl.name}" loaded — assign agents to nodes, then save.`)
   }
 
   return (
-    <div className="flex h-[calc(100vh-0px)]">
-      {/* Left panel */}
+    <div className="flex h-[calc(100vh-0px)] relative">
+      {/* ── Condition node modal ──────────────────────────────────────────── */}
+      {showConditionModal && (
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 w-[440px] space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GitFork size={16} className="text-yellow-400" />
+                <h3 className="font-semibold text-sm">Add Condition Node</h3>
+              </div>
+              <button onClick={() => setShowConditionModal(false)} className="text-gray-500 hover:text-gray-300">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400">Label</label>
+              <input
+                className="input w-full mt-1"
+                value={conditionDraft.label}
+                onChange={e => setConditionDraft(d => ({ ...d, label: e.target.value }))}
+                placeholder="e.g. Quality Check"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400">
+                Condition <span className="text-gray-600">(LLM evaluates this as true/false)</span>
+              </label>
+              <textarea
+                className="input w-full mt-1 h-24 resize-none text-sm"
+                value={conditionDraft.condition_prompt}
+                onChange={e => setConditionDraft(d => ({ ...d, condition_prompt: e.target.value }))}
+                placeholder="Is the response at least 3 sentences long, well-structured, and directly answering the question?"
+                autoFocus
+              />
+              <p className="text-[10px] text-gray-600 mt-1">
+                Green handle (T) → pass / exit path · Red handle (F) → retry / loop path
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={confirmConditionNode}
+                disabled={!conditionDraft.condition_prompt.trim()}
+                className="btn-primary flex-1 text-sm"
+              >
+                Add to Canvas
+              </button>
+              <button
+                onClick={() => setShowConditionModal(false)}
+                className="btn-ghost flex-1 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Left panel ───────────────────────────────────────────────────── */}
       <div className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col">
         <div className="p-4 border-b border-gray-800 flex justify-between items-center">
           <span className="font-semibold text-sm">Workflows</span>
@@ -179,7 +254,7 @@ export default function WorkflowBuilderPage() {
           ))}
         </div>
 
-        {/* Agent palette */}
+        {/* Node palette */}
         <div className="border-t border-gray-800 p-3">
           <p className="text-xs text-gray-500 mb-2">Add to canvas:</p>
           <div className="space-y-1 max-h-36 overflow-y-auto mb-2">
@@ -194,45 +269,79 @@ export default function WorkflowBuilderPage() {
             ))}
           </div>
           <button
-            onClick={addConditionNode}
-            className="w-full text-left text-xs bg-yellow-950 hover:bg-yellow-900 border border-yellow-800 rounded px-2 py-1.5 text-yellow-300 flex items-center gap-1"
+            onClick={openConditionModal}
+            className="w-full text-left text-xs bg-yellow-950 hover:bg-yellow-900 border border-yellow-800 rounded px-2 py-1.5 text-yellow-300 flex items-center gap-1.5"
           >
-            ⬥ Add Condition Node
+            <GitFork size={12} /> Add Condition Node
           </button>
           <p className="text-[10px] text-gray-600 mt-1.5 leading-tight">
-            Condition nodes branch on T/F — use the green (T) or red (F) handle to route.
+            Connects green (T) → pass, red (F) → retry/loop.
           </p>
         </div>
       </div>
 
-      {/* Canvas */}
+      {/* ── Canvas area ──────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col">
-        {/* Toolbar */}
+        {/* Toolbar row */}
         <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 flex items-center gap-3">
           <input
-            className="input text-sm w-52"
+            className="input text-sm w-44"
             placeholder="Workflow name"
             value={name}
             onChange={e => setName(e.target.value)}
           />
           <input
-            className="input text-sm flex-1"
+            className="input text-sm w-48"
             placeholder="Description (optional)"
             value={description}
             onChange={e => setDescription(e.target.value)}
           />
-          <button onClick={save} className="btn-ghost text-xs flex items-center gap-1">
+          <button onClick={save} className="btn-ghost text-xs flex items-center gap-1 shrink-0">
             <Save size={13} /> Save
           </button>
-          <button
-            onClick={run}
-            disabled={running || !selected}
-            className="btn-primary text-xs flex items-center gap-1"
-          >
-            <Play size={13} /> {running ? 'Running…' : 'Run'}
-          </button>
+
+          {selected && (
+            <>
+              <div className="h-4 border-l border-gray-700 shrink-0" />
+              <input
+                className="input text-sm flex-1 min-w-36"
+                placeholder="Input message — then hit Run ▶"
+                value={runInput}
+                onChange={e => setRunInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && run()}
+              />
+              <button
+                onClick={run}
+                disabled={running}
+                className="btn-primary text-xs flex items-center gap-1 shrink-0"
+              >
+                <Play size={13} /> {running ? 'Running…' : 'Run'}
+              </button>
+            </>
+          )}
         </div>
 
+        {/* Inline run output */}
+        {runOutput && (
+          <div className="bg-gray-950 border-b border-gray-800 px-4 py-2">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs text-gray-400 font-mono">
+                ✅ Output · {runOutput.tokens} tokens
+              </span>
+              <button
+                onClick={() => setRunOutput(null)}
+                className="text-xs text-gray-600 hover:text-gray-400 flex items-center gap-1"
+              >
+                <X size={11} /> clear
+              </button>
+            </div>
+            <p className="text-sm text-gray-200 max-h-32 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+              {runOutput.output}
+            </p>
+          </div>
+        )}
+
+        {/* ReactFlow canvas */}
         <div className="flex-1">
           <ReactFlow
             nodes={nodes}
