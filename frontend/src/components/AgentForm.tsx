@@ -11,10 +11,13 @@ interface Props {
   onCancel: () => void
 }
 
+const RESPONSE_FORMATS = ['any', 'plain text', 'markdown', 'JSON']
+const TONES = ['any', 'professional', 'casual', 'concise', 'detailed']
+
 const EMPTY: Partial<Agent> = {
   name: '', role: 'assistant', system_prompt: '', model: 'gpt-4o-mini',
   tools: [], channels: [], memory_enabled: true, max_iterations: 10,
-  temperature: 0.7, guardrails: {}, schedule: {},
+  temperature: 0.7, guardrails: {}, schedule: {}, interaction_rules: {},
 }
 
 export default function AgentForm({ agent, onSave, onCancel }: Props) {
@@ -31,11 +34,19 @@ export default function AgentForm({ agent, onSave, onCancel }: Props) {
   const schedCron: string = (form.schedule as any)?.cron ?? ''
   const schedPrompt: string = (form.schedule as any)?.prompt ?? ''
 
+  // Interaction rules helpers
+  const irFormat: string = (form.interaction_rules as any)?.response_format ?? 'any'
+  const irTone: string = (form.interaction_rules as any)?.tone ?? 'any'
+  const irCustom: string = (form.interaction_rules as any)?.custom_instructions ?? ''
+
   const setGuardrail = (key: string, val: unknown) =>
     setForm(f => ({ ...f, guardrails: { ...(f.guardrails as any), [key]: val } }))
 
   const setSchedule = (key: string, val: unknown) =>
     setForm(f => ({ ...f, schedule: { ...(f.schedule as any), [key]: val } }))
+
+  const setIRule = (key: string, val: unknown) =>
+    setForm(f => ({ ...f, interaction_rules: { ...(f.interaction_rules as any), [key]: val } }))
 
   useEffect(() => {
     agentApi.tools().then(setAvailableTools)
@@ -241,6 +252,42 @@ export default function AgentForm({ agent, onSave, onCancel }: Props) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── Interaction Rules ──────────────────────────────────────────── */}
+      <div className="border border-gray-700 rounded-lg p-4 space-y-3">
+        <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Interaction Rules</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-gray-400">Response Format</label>
+            <select
+              className="input w-full mt-1"
+              value={irFormat}
+              onChange={e => setIRule('response_format', e.target.value)}
+            >
+              {RESPONSE_FORMATS.map(f => <option key={f} value={f}>{f === 'any' ? 'Any (no constraint)' : f}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-400">Tone</label>
+            <select
+              className="input w-full mt-1"
+              value={irTone}
+              onChange={e => setIRule('tone', e.target.value)}
+            >
+              {TONES.map(t => <option key={t} value={t}>{t === 'any' ? 'Any (no constraint)' : t}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-gray-400">Custom Instructions <span className="text-gray-600">(appended to system prompt)</span></label>
+          <textarea
+            className="input w-full mt-1 h-16 resize-none text-xs"
+            value={irCustom}
+            onChange={e => setIRule('custom_instructions', e.target.value)}
+            placeholder="e.g. Always start with a TL;DR. Never use bullet points."
+          />
+        </div>
       </div>
 
       {/* Actions */}

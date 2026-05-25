@@ -15,6 +15,7 @@ class AgentCreate(BaseModel):
     temperature: float = 0.7
     guardrails: Dict[str, Any] = {}
     schedule: Dict[str, Any] = {}
+    interaction_rules: Dict[str, Any] = {}
 
 
 class AgentUpdate(BaseModel):
@@ -29,6 +30,7 @@ class AgentUpdate(BaseModel):
     temperature: Optional[float] = None
     guardrails: Optional[Dict[str, Any]] = None
     schedule: Optional[Dict[str, Any]] = None
+    interaction_rules: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
 
 
@@ -45,6 +47,7 @@ class AgentResponse(BaseModel):
     temperature: float
     guardrails: Dict[str, Any]
     schedule: Dict[str, Any]
+    interaction_rules: Dict[str, Any]
     is_active: bool
     created_at: datetime
     updated_at: datetime

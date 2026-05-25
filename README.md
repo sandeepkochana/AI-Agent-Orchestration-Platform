@@ -11,7 +11,7 @@ A full-stack platform to create, configure, and orchestrate collaborative AI age
 │                        Browser (React + Vite)                          │
 │                                                                        │
 │   Dashboard │ Agents CRUD │ Workflow Builder │ Monitor │ Messages      │
-│               (ReactFlow canvas)          (WebSocket live feed)        │
+│               (ReactFlow canvas w/ condition nodes)  (WS live feed)   │
 └───────────────────────────┬────────────────────────────────────────────┘
                             │ HTTP REST + WebSocket
 ┌───────────────────────────▼────────────────────────────────────────────┐
@@ -24,23 +24,25 @@ A full-stack platform to create, configure, and orchestrate collaborative AI age
 │  │                    LangGraph Runtime Engine                       │  │
 │  │                                                                  │  │
 │  │  Single Agent: create_react_agent(LLM, tools)                    │  │
+│  │  + interaction_rules injected into system prompt                 │  │
 │  │                                                                  │  │
-│  │  Multi-Agent Workflow:                                           │  │
-│  │  StateGraph ──► Node(AgentA) ──► Node(AgentB) ──► END           │  │
-│  │  (built dynamically from workflow nodes + edges saved in DB)     │  │
+│  │  Multi-Agent Workflow (StateGraph):                              │  │
+│  │  START ──► AgentNode ──► ConditionNode ──► AgentNode ──► END    │  │
+│  │                    ↑____________(false/loop)                     │  │
 │  │                                                                  │  │
+│  │  Condition nodes: LLM evaluates boolean → routes true/false      │  │
+│  │  Feedback loops: bounded by iteration_count + recursion_limit    │  │
 │  │  Tools: web_search │ calculator │ http_request │ get_datetime    │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                                                                        │
-│  ┌─────────────────┐   ┌──────────────────┐   ┌────────────────────┐  │
-│  │  Telegram Bot   │   │  WebSocket Mgr   │   │  SQLite (via       │  │
-│  │  (python-       │   │  (broadcasts     │   │  SQLAlchemy async) │  │
-│  │  telegram-bot)  │   │  logs & events)  │   │  agents.db         │  │
-│  └─────────────────┘   └──────────────────┘   └────────────────────┘  │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  ┌────────────┐  │
+│  │ Telegram Bot │  │  Slack Bot   │  │  WS Mgr    │  │  SQLite    │  │
+│  │ (ptb v21)    │  │ (slack-bolt) │  │ broadcasts │  │ async ORM  │  │
+│  └──────────────┘  └──────────────┘  └────────────┘  └────────────┘  │
 └────────────────────────────────────────────────────────────────────────┘
-                            │
-                     Telegram API
-                    (external channel)
+          │                    │
+    Telegram API           Slack API
+   (external channels)
 ```
 
 ---
@@ -54,7 +56,7 @@ A full-stack platform to create, configure, and orchestrate collaborative AI age
 | **Database** | **SQLite + SQLAlchemy async** | Zero-config local persistence. Swap to PostgreSQL by changing `DATABASE_URL` — no code changes needed. |
 | **Frontend** | **React + Vite + TypeScript** | Fast DX, small bundle. Vite proxy keeps CORS simple in dev. |
 | **Workflow UI** | **ReactFlow (@xyflow/react)** | Purpose-built for node-edge graph editors. Handles drag, connect, minimap, and zoom out of the box. |
-| **Messaging** | **Telegram** | Easiest to self-host locally — just a bot token from @BotFather, no business account or webhook server required. |
+| **Messaging** | **Telegram + Slack** | Telegram needs only a bot token from @BotFather. Slack uses Socket Mode (no public webhook needed) — both start automatically if their tokens are in `.env`. |
 | **Real-time** | **WebSocket (native FastAPI)** | One `/ws` endpoint broadcasts all agent events (logs, tool calls, status) to the UI live. |
 
 ---
@@ -115,18 +117,23 @@ Create agents with:
 - **Channels** — `telegram`, `slack`
 - **Memory toggle** — persistent conversation history per thread
 - **Max iterations, temperature** — runtime controls
-- **Guardrails** — JSON config for topic restrictions, token limits
-- **Schedule** — cron config (stored, scheduler hookup documented below)
+- **Guardrails** — banned topic pre-check, token budget post-check
+- **Schedule** — cron + auto-run prompt (APScheduler)
+- **Interaction Rules** — response format (plain/markdown/JSON), tone (professional/casual/concise/detailed), custom instructions; all injected into the system prompt at runtime
 
 ### Visual Workflow Builder
 - Drag agents from the sidebar onto the ReactFlow canvas
-- Connect nodes by drawing edges
+- Connect nodes by drawing edges (including back-edges for loops)
+- **Condition nodes** (⬥) for branching and feedback loops:
+  - The LLM evaluates a boolean condition against the previous agent's output
+  - Green handle (T) routes to the "pass" branch; red handle (F) routes to the "retry/loop" branch
+  - Feedback loops terminate after 5 iterations (soft limit) or 25 node executions (hard cap)
 - Start / End sentinel nodes included
 - Save to database; run directly from the toolbar
 - **2 pre-built templates**: Research & Summarise, Customer Support Triage
 
 ### Multi-Agent Execution (LangGraph)
-Workflows run as a `StateGraph` where each agent node is a full ReAct agent. Agents pass results downstream via the shared `WorkflowState.messages` list — true async message passing.
+Workflows run as a `StateGraph` where each agent node is a full ReAct agent. Agents pass results downstream via the shared `WorkflowState.messages` list — true async message passing. Condition nodes use `add_conditional_edges` with an LLM-evaluated router.
 
 ### Real-time Monitoring
 - WebSocket live feed on the Monitor page

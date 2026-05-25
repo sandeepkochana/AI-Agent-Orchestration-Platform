@@ -53,6 +53,21 @@ export default function WorkflowBuilderPage() {
     setEdges([])
   }
 
+  const addConditionNode = () => {
+    const label = window.prompt('Condition label (e.g. "Quality check")?', 'Condition') ?? 'Condition'
+    const condition_prompt = window.prompt(
+      'Condition for the LLM to evaluate (e.g. "Is the response comprehensive and well-structured?")',
+      'Is the previous output complete and satisfactory?'
+    ) ?? 'Is the previous output complete and satisfactory?'
+    const id = `condition-${genId()}`
+    setNodes(ns => [...ns, {
+      id,
+      type: 'condition',
+      position: { x: 350 + Math.random() * 200, y: 150 + Math.random() * 100 },
+      data: { label, condition_prompt },
+    } as never])
+  }
+
   const addAgentNode = (agent: Agent) => {
     const id = `agent-${genId()}`
     setNodes(ns => [...ns, {
@@ -166,8 +181,8 @@ export default function WorkflowBuilderPage() {
 
         {/* Agent palette */}
         <div className="border-t border-gray-800 p-3">
-          <p className="text-xs text-gray-500 mb-2">Drag agents onto canvas:</p>
-          <div className="space-y-1 max-h-40 overflow-y-auto">
+          <p className="text-xs text-gray-500 mb-2">Add to canvas:</p>
+          <div className="space-y-1 max-h-36 overflow-y-auto mb-2">
             {agents.map(a => (
               <button
                 key={a.id}
@@ -178,6 +193,15 @@ export default function WorkflowBuilderPage() {
               </button>
             ))}
           </div>
+          <button
+            onClick={addConditionNode}
+            className="w-full text-left text-xs bg-yellow-950 hover:bg-yellow-900 border border-yellow-800 rounded px-2 py-1.5 text-yellow-300 flex items-center gap-1"
+          >
+            ⬥ Add Condition Node
+          </button>
+          <p className="text-[10px] text-gray-600 mt-1.5 leading-tight">
+            Condition nodes branch on T/F — use the green (T) or red (F) handle to route.
+          </p>
         </div>
       </div>
 

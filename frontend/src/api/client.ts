@@ -17,6 +17,7 @@ export interface Agent {
   temperature: number
   guardrails: Record<string, unknown>
   schedule: Record<string, unknown>
+  interaction_rules: Record<string, unknown>
   is_active: boolean
   created_at: string
   updated_at: string
