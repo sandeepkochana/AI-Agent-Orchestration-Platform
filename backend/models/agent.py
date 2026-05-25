@@ -19,8 +19,7 @@ class Agent(Base):
     max_iterations: Mapped[int] = mapped_column(default=10)
     temperature: Mapped[float] = mapped_column(default=0.7)
     guardrails: Mapped[dict] = mapped_column(JSON, default=dict)     # {"max_tokens": 2000, "banned_topics": []}
-    skills: Mapped[list] = mapped_column(JSON, default=list)
-    schedule: Mapped[dict] = mapped_column(JSON, default=dict)       # {"cron": "*/5 * * * *", "enabled": false}
+    schedule: Mapped[dict] = mapped_column(JSON, default=dict)       # {"enabled": true, "cron": "0 9 * * 1-5", "prompt": "..."}
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

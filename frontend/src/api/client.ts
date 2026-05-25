@@ -16,7 +16,6 @@ export interface Agent {
   max_iterations: number
   temperature: number
   guardrails: Record<string, unknown>
-  skills: string[]
   schedule: Record<string, unknown>
   is_active: boolean
   created_at: string

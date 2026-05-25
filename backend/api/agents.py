@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from database import get_db
+from database import get_db, AsyncSessionLocal
 from models.agent import Agent
 from schemas import AgentCreate, AgentUpdate, AgentResponse, RunAgentRequest
 from runtime.tools import AVAILABLE_TOOLS
@@ -82,7 +82,7 @@ async def run_agent(agent_id: str, payload: RunAgentRequest, db: AsyncSession = 
 
     await ws_manager.send_status(execution.id, "running")
 
-    runner = AgentRunner(agent, ws_manager, db)
+    runner = AgentRunner(agent, ws_manager, db, db_factory=AsyncSessionLocal)
     result = await runner.run(payload.message, execution.id, thread_id=payload.thread_id)
 
     execution.status = "failed" if result["error"] else "completed"

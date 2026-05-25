@@ -14,7 +14,6 @@ class AgentCreate(BaseModel):
     max_iterations: int = 10
     temperature: float = 0.7
     guardrails: Dict[str, Any] = {}
-    skills: List[str] = []
     schedule: Dict[str, Any] = {}
 
 
@@ -29,7 +28,6 @@ class AgentUpdate(BaseModel):
     max_iterations: Optional[int] = None
     temperature: Optional[float] = None
     guardrails: Optional[Dict[str, Any]] = None
-    skills: Optional[List[str]] = None
     schedule: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
 
@@ -46,7 +44,6 @@ class AgentResponse(BaseModel):
     max_iterations: int
     temperature: float
     guardrails: Dict[str, Any]
-    skills: List[str]
     schedule: Dict[str, Any]
     is_active: bool
     created_at: datetime
