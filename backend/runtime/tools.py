@@ -3,26 +3,24 @@ import httpx
 from datetime import datetime
 from langchain_core.tools import tool
 
-try:
-    from duckduckgo_search import DDGS
-    _ddgs_available = True
-except ImportError:
-    _ddgs_available = False
+from config import settings
 
 
 @tool
 def web_search(query: str) -> str:
     """Search the web for current information. Returns top results."""
-    if not _ddgs_available:
-        return "Web search unavailable: duckduckgo_search not installed."
+    if not settings.TAVILY_API_KEY:
+        return "Web search unavailable: TAVILY_API_KEY not set in .env."
     try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=5))
+        from tavily import TavilyClient
+        client = TavilyClient(api_key=settings.TAVILY_API_KEY)
+        response = client.search(query, max_results=5)
+        results = response.get("results", [])
         if not results:
             return "No results found."
         output = []
         for r in results:
-            output.append(f"**{r.get('title', '')}**\n{r.get('href', '')}\n{r.get('body', '')}")
+            output.append(f"**{r.get('title', '')}**\n{r.get('url', '')}\n{r.get('content', '')}")
         return "\n\n---\n\n".join(output)
     except Exception as e:
         return f"Search error: {str(e)}"

@@ -26,6 +26,14 @@ async def lifespan(app: FastAPI):
         logger.info("Starting Telegram bot …")
         await _start_telegram()
 
+    if settings.SLACK_BOT_TOKEN and settings.SLACK_APP_TOKEN:
+        logger.info("Starting Slack bot …")
+        await _start_slack()
+
+    logger.info("Starting scheduler …")
+    from scheduler import start_scheduler
+    await start_scheduler(AsyncSessionLocal, ws_manager)
+
     yield
 
     # ── Shutdown ─────────────────────────────────────────────────────────────
@@ -37,6 +45,13 @@ async def lifespan(app: FastAPI):
             pass
         from channels.telegram import stop_telegram_bot
         await stop_telegram_bot()
+
+    if settings.SLACK_BOT_TOKEN:
+        from channels.slack import stop_slack_bot
+        await stop_slack_bot()
+
+    from scheduler import stop_scheduler
+    stop_scheduler()
 
 
 async def _start_telegram():
@@ -59,9 +74,39 @@ async def _start_telegram():
         logger.warning("No agent with 'telegram' channel configured. Telegram bot not started.")
         return
 
-    runner = AgentRunner(telegram_agent, ws_manager)
+    runner = AgentRunner(telegram_agent, ws_manager, db_factory=AsyncSessionLocal)
     await start_telegram_bot(
         settings.TELEGRAM_BOT_TOKEN,
+        runner,
+        AsyncSessionLocal,
+        ws_manager,
+    )
+
+
+async def _start_slack():
+    """Boot the Slack bot with the first agent that has the 'slack' channel."""
+    from sqlalchemy import select
+    from models.agent import Agent
+    from channels.slack import start_slack_bot
+    from runtime.engine import AgentRunner
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Agent).where(Agent.is_active == True)
+        )
+        agents = result.scalars().all()
+        slack_agent = next(
+            (a for a in agents if "slack" in (a.channels or [])), None
+        )
+
+    if not slack_agent:
+        logger.warning("No agent with 'slack' channel configured. Slack bot not started.")
+        return
+
+    runner = AgentRunner(slack_agent, ws_manager, db_factory=AsyncSessionLocal)
+    await start_slack_bot(
+        settings.SLACK_BOT_TOKEN,
+        settings.SLACK_APP_TOKEN,
         runner,
         AsyncSessionLocal,
         ws_manager,

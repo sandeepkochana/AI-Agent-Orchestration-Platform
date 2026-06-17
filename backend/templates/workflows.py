@@ -106,4 +106,59 @@ TEMPLATES = [
         ],
         "trigger": {"type": "manual"},
     },
+    {
+        "id": "quality-review-loop",
+        "name": "Quality Review Loop",
+        "description": "Writer drafts a response; a condition node evaluates quality and loops back to the writer if insufficient (max 5 iterations). Demonstrates feedback loops.",
+        "nodes": [
+            {
+                "id": "start-1",
+                "type": "start",
+                "position": {"x": 50, "y": 200},
+                "data": {"label": "Start"},
+            },
+            {
+                "id": "agent-writer",
+                "type": "agent",
+                "position": {"x": 270, "y": 200},
+                "data": {
+                    "label": "Writer",
+                    "agent_id": "__WRITER__",
+                    "role": "writer",
+                    "system_prompt": (
+                        "You are a skilled content writer. Draft a clear, detailed, "
+                        "well-structured response to the given topic in at least 3 sentences."
+                    ),
+                    "model": "gpt-4o-mini",
+                    "tools": [],
+                },
+            },
+            {
+                "id": "condition-quality",
+                "type": "condition",
+                "position": {"x": 530, "y": 200},
+                "data": {
+                    "label": "Quality Check",
+                    "condition_prompt": (
+                        "Is this response at least 3 sentences long, well-structured, "
+                        "and does it directly answer the question? Answer true or false."
+                    ),
+                },
+            },
+            {
+                "id": "end-1",
+                "type": "end",
+                "position": {"x": 760, "y": 120},
+                "data": {"label": "End"},
+            },
+        ],
+        "edges": [
+            {"id": "e1", "source": "start-1",         "target": "agent-writer"},
+            {"id": "e2", "source": "agent-writer",     "target": "condition-quality"},
+            # true → exit, false → loop back to writer
+            {"id": "e3", "source": "condition-quality", "target": "end-1",       "sourceHandle": "true"},
+            {"id": "e4", "source": "condition-quality", "target": "agent-writer", "sourceHandle": "false"},
+        ],
+        "trigger": {"type": "manual"},
+    },
 ]

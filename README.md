@@ -4,6 +4,12 @@ A full-stack platform to create, configure, and orchestrate collaborative AI age
 
 ---
 
+## Demo
+
+> 🎬 **[Watch the demo on YouTube](https://youtu.be/JtOGy5CmsC8)** — end-to-end walkthrough including agent configuration, multi-agent workflow execution, feedback loop with condition node, guardrail blocking, and a live Telegram conversation.
+
+---
+
 ## Architecture Diagram
 
 ```
@@ -11,7 +17,7 @@ A full-stack platform to create, configure, and orchestrate collaborative AI age
 │                        Browser (React + Vite)                          │
 │                                                                        │
 │   Dashboard │ Agents CRUD │ Workflow Builder │ Monitor │ Messages      │
-│               (ReactFlow canvas)          (WebSocket live feed)        │
+│               (ReactFlow canvas w/ condition nodes)  (WS live feed)   │
 └───────────────────────────┬────────────────────────────────────────────┘
                             │ HTTP REST + WebSocket
 ┌───────────────────────────▼────────────────────────────────────────────┐
@@ -24,23 +30,25 @@ A full-stack platform to create, configure, and orchestrate collaborative AI age
 │  │                    LangGraph Runtime Engine                       │  │
 │  │                                                                  │  │
 │  │  Single Agent: create_react_agent(LLM, tools)                    │  │
+│  │  + interaction_rules injected into system prompt                 │  │
 │  │                                                                  │  │
-│  │  Multi-Agent Workflow:                                           │  │
-│  │  StateGraph ──► Node(AgentA) ──► Node(AgentB) ──► END           │  │
-│  │  (built dynamically from workflow nodes + edges saved in DB)     │  │
+│  │  Multi-Agent Workflow (StateGraph):                              │  │
+│  │  START ──► AgentNode ──► ConditionNode ──► AgentNode ──► END    │  │
+│  │                    ↑____________(false/loop)                     │  │
 │  │                                                                  │  │
+│  │  Condition nodes: LLM evaluates boolean → routes true/false      │  │
+│  │  Feedback loops: bounded by iteration_count + recursion_limit    │  │
 │  │  Tools: web_search │ calculator │ http_request │ get_datetime    │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                                                                        │
-│  ┌─────────────────┐   ┌──────────────────┐   ┌────────────────────┐  │
-│  │  Telegram Bot   │   │  WebSocket Mgr   │   │  SQLite (via       │  │
-│  │  (python-       │   │  (broadcasts     │   │  SQLAlchemy async) │  │
-│  │  telegram-bot)  │   │  logs & events)  │   │  agents.db         │  │
-│  └─────────────────┘   └──────────────────┘   └────────────────────┘  │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  ┌────────────┐  │
+│  │ Telegram Bot │  │  Slack Bot   │  │  WS Mgr    │  │  SQLite    │  │
+│  │ (ptb v21)    │  │ (slack-bolt) │  │ broadcasts │  │ async ORM  │  │
+│  └──────────────┘  └──────────────┘  └────────────┘  └────────────┘  │
 └────────────────────────────────────────────────────────────────────────┘
-                            │
-                     Telegram API
-                    (external channel)
+          │                    │
+    Telegram API           Slack API
+   (external channels)
 ```
 
 ---
@@ -54,7 +62,7 @@ A full-stack platform to create, configure, and orchestrate collaborative AI age
 | **Database** | **SQLite + SQLAlchemy async** | Zero-config local persistence. Swap to PostgreSQL by changing `DATABASE_URL` — no code changes needed. |
 | **Frontend** | **React + Vite + TypeScript** | Fast DX, small bundle. Vite proxy keeps CORS simple in dev. |
 | **Workflow UI** | **ReactFlow (@xyflow/react)** | Purpose-built for node-edge graph editors. Handles drag, connect, minimap, and zoom out of the box. |
-| **Messaging** | **Telegram** | Easiest to self-host locally — just a bot token from @BotFather, no business account or webhook server required. |
+| **Messaging** | **Telegram + Slack** | Telegram needs only a bot token from @BotFather. Slack uses Socket Mode (no public webhook needed) — both start automatically if their tokens are in `.env`. |
 | **Real-time** | **WebSocket (native FastAPI)** | One `/ws` endpoint broadcasts all agent events (logs, tool calls, status) to the UI live. |
 
 ---
@@ -86,7 +94,17 @@ OPENAI_API_KEY=sk-...
 TELEGRAM_BOT_TOKEN=      # optional — paste your bot token here
 ```
 
-### 3 — Start
+### 3 — Seed demo data (optional but recommended)
+
+```bash
+cd backend
+source .venv/bin/activate
+python seed.py
+```
+
+Creates a **Researcher** agent, a **Writer** agent, a **Research → Write** workflow, and a **Quality Review Loop** workflow (demonstrates condition nodes + feedback loops). Safe to re-run — skips anything that already exists.
+
+### 4 — Start
 
 **Terminal 1 — Backend:**
 ```bash
@@ -101,7 +119,7 @@ cd frontend
 npm run dev
 ```
 
-Open **http://localhost:3000**
+Open **http://localhost:3000** (or the port Vite reports if 3000 is taken)
 
 ---
 
@@ -112,21 +130,27 @@ Create agents with:
 - **Name, Role, System Prompt** — personality and purpose
 - **Model** — `gpt-4o-mini`, `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`
 - **Tools** — `web_search`, `calculator`, `http_request`, `get_current_datetime`
+- **Skills** — comma-separated capability tags (e.g. `summarization, code review, translation`) injected into the system prompt under a `## Skills` heading
 - **Channels** — `telegram`, `slack`
 - **Memory toggle** — persistent conversation history per thread
 - **Max iterations, temperature** — runtime controls
-- **Guardrails** — JSON config for topic restrictions, token limits
-- **Schedule** — cron config (stored, scheduler hookup documented below)
+- **Guardrails** — banned topic pre-check, token budget post-check
+- **Schedule** — cron + auto-run prompt (APScheduler)
+- **Interaction Rules** — response format (plain/markdown/JSON), tone (professional/casual/concise/detailed), custom instructions; all injected into the system prompt at runtime
 
 ### Visual Workflow Builder
 - Drag agents from the sidebar onto the ReactFlow canvas
-- Connect nodes by drawing edges
+- Connect nodes by drawing edges (including back-edges for loops)
+- **Condition nodes** (⬥) for branching and feedback loops:
+  - The LLM evaluates a boolean condition against the previous agent's output
+  - Green handle (T) routes to the "pass" branch; red handle (F) routes to the "retry/loop" branch
+  - Feedback loops terminate after 5 iterations (soft limit) or 25 node executions (hard cap)
 - Start / End sentinel nodes included
 - Save to database; run directly from the toolbar
 - **2 pre-built templates**: Research & Summarise, Customer Support Triage
 
 ### Multi-Agent Execution (LangGraph)
-Workflows run as a `StateGraph` where each agent node is a full ReAct agent. Agents pass results downstream via the shared `WorkflowState.messages` list — true async message passing.
+Workflows run as a `StateGraph` where each agent node is a full ReAct agent. Agents pass results downstream via the shared `WorkflowState.messages` list — true async message passing. Condition nodes use `add_conditional_edges` with an LLM-evaluated router.
 
 ### Real-time Monitoring
 - WebSocket live feed on the Monitor page
@@ -167,7 +191,7 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
-Tests cover agent schema validation, tool registry, calculator tool, WebSocket manager, workflow templates, and config loading.
+28 tests covering: agent schema validation, tool registry, calculator, datetime, WebSocket connect/disconnect/broadcast, workflow templates (including condition node structure), config, guardrail banned-topic blocking, guardrail token budget, skills injection and schema defaults, interaction rule prompt injection, and condition node routing logic (including force-exit after max iterations).
 
 ---
 
@@ -227,13 +251,27 @@ AI-Agent-Orchestration-Platform/
 
 ## End-to-End Demo Flow
 
-1. Create a **Researcher** agent (tools: `web_search`, `get_current_datetime`)
-2. Create a **Writer** agent (no extra tools)
-3. Open **Workflow Builder** → load the **Research & Summarise** template
-4. Assign the two agents to the respective nodes → **Save**
-5. Hit **Run** with input: *"Latest advancements in LLM fine-tuning 2025"*
-6. Watch the **Monitor** live feed — tool calls, inter-agent messages, token count
-7. *(Optional)* Set `TELEGRAM_BOT_TOKEN`, create an agent with `channels: ["telegram"]`, restart backend — message the bot directly on Telegram
+Run `python seed.py` first to create the demo agents and workflows, then:
+
+### Demo A — 2-agent pipeline (Research → Write)
+1. Open **Workflow Builder** → select **Research → Write**
+2. Type *"Latest advancements in LLM fine-tuning 2025"* in the input field → **Run**
+3. Watch the **Monitor** live feed — tool calls, inter-agent messages, per-agent token counts
+
+### Demo B — Feedback loop (Quality Review Loop)
+1. Open **Workflow Builder** → select **Quality Review Loop**
+2. Type any question (e.g. *"What is a transformer model?"*) → **Run**
+3. The Writer drafts a response; the Condition node asks the LLM *"Is this ≥ 3 sentences and well-structured?"*
+4. If `false` → loops back to Writer (up to 5 times); if `true` → exits to End
+5. Monitor shows the `🔀 Condition → true/false` routing event for each iteration
+
+### Demo C — Guardrails
+1. Edit any agent → add `politics` to **Banned Topics**
+2. Run the agent with a message containing "politics"
+3. The response is blocked instantly — the LLM is never called
+
+### Demo D — Telegram channel
+Set `TELEGRAM_BOT_TOKEN` in `.env`, create an agent with `channels: ["telegram"]`, restart the backend, message the bot on Telegram.
 
 ---
 

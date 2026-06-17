@@ -11,13 +11,14 @@ export interface Agent {
   system_prompt: string
   model: string
   tools: string[]
+  skills: string[]
   channels: string[]
   memory_enabled: boolean
   max_iterations: number
   temperature: number
   guardrails: Record<string, unknown>
-  skills: string[]
   schedule: Record<string, unknown>
+  interaction_rules: Record<string, unknown>
   is_active: boolean
   created_at: string
   updated_at: string
@@ -70,7 +71,7 @@ export interface ExecLog {
   agent_name: string
   log_type: string
   content: string
-  metadata: Record<string, unknown>
+  extra_data: Record<string, unknown>
   timestamp: string
 }
 
@@ -83,7 +84,7 @@ export interface ChannelMessage {
   direction: string
   content: string
   is_read: boolean
-  metadata: Record<string, unknown>
+  extra_data: Record<string, unknown>
   created_at: string
 }
 

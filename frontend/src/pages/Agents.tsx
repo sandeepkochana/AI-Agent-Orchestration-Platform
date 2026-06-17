@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Bot, Trash2, Edit2, Play, MessageSquare } from 'lucide-react'
+import { Plus, Bot, Trash2, Edit2, MessageSquare } from 'lucide-react'
 import { agentApi } from '../api/client'
 import type { Agent } from '../api/client'
 import AgentForm from '../components/AgentForm'
@@ -9,7 +9,6 @@ export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editAgent, setEditAgent] = useState<Agent | null>(null)
-  const [running, setRunning] = useState<string | null>(null)
   const [chatAgent, setChatAgent] = useState<Agent | null>(null)
   const [chatMsg, setChatMsg] = useState('')
   const [chatHistory, setChatHistory] = useState<{ role: string; content: string }[]>([])
@@ -29,21 +28,6 @@ export default function AgentsPage() {
     await agentApi.delete(id)
     load()
     toast.success('Agent deleted')
-  }
-
-  const handleRun = async (agent: Agent) => {
-    const msg = prompt('Enter a message for the agent:')
-    if (!msg) return
-    setRunning(agent.id)
-    try {
-      const result = await agentApi.run(agent.id, msg)
-      toast.success(`Done! ${result.tokens} tokens used.`)
-      alert(`Response:\n\n${result.output}`)
-    } catch (e: unknown) {
-      toast.error('Agent run failed')
-    } finally {
-      setRunning(null)
-    }
   }
 
   const handleChat = async () => {
@@ -121,13 +105,6 @@ export default function AgentsPage() {
                 className="btn-ghost text-xs flex items-center gap-1"
               >
                 <MessageSquare size={13} /> Chat
-              </button>
-              <button
-                onClick={() => handleRun(agent)}
-                disabled={running === agent.id}
-                className="btn-ghost text-xs flex items-center gap-1"
-              >
-                <Play size={13} /> {running === agent.id ? 'Running…' : 'Run'}
               </button>
               <button
                 onClick={() => { setEditAgent(agent); setShowForm(false) }}

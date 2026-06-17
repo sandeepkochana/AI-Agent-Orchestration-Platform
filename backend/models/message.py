@@ -16,5 +16,5 @@ class Message(Base):
     direction: Mapped[str] = mapped_column(String(10), nullable=False)        # inbound | outbound
     content: Mapped[str] = mapped_column(Text, nullable=False)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
-    metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    extra_data: Mapped[dict] = mapped_column(JSON, name="metadata", default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

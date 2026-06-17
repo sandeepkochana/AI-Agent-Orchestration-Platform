@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     DEFAULT_MODEL: str = "gpt-4o-mini"
 
+    # Search
+    TAVILY_API_KEY: Optional[str] = None
+
     # Telegram
     TELEGRAM_BOT_TOKEN: Optional[str] = None
 

@@ -9,13 +9,14 @@ class AgentCreate(BaseModel):
     system_prompt: str
     model: str = "gpt-4o-mini"
     tools: List[str] = []
+    skills: List[str] = []
     channels: List[str] = []
     memory_enabled: bool = True
     max_iterations: int = 10
     temperature: float = 0.7
     guardrails: Dict[str, Any] = {}
-    skills: List[str] = []
     schedule: Dict[str, Any] = {}
+    interaction_rules: Dict[str, Any] = {}
 
 
 class AgentUpdate(BaseModel):
@@ -24,13 +25,14 @@ class AgentUpdate(BaseModel):
     system_prompt: Optional[str] = None
     model: Optional[str] = None
     tools: Optional[List[str]] = None
+    skills: Optional[List[str]] = None
     channels: Optional[List[str]] = None
     memory_enabled: Optional[bool] = None
     max_iterations: Optional[int] = None
     temperature: Optional[float] = None
     guardrails: Optional[Dict[str, Any]] = None
-    skills: Optional[List[str]] = None
     schedule: Optional[Dict[str, Any]] = None
+    interaction_rules: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
 
 
@@ -41,13 +43,14 @@ class AgentResponse(BaseModel):
     system_prompt: str
     model: str
     tools: List[str]
+    skills: List[str]
     channels: List[str]
     memory_enabled: bool
     max_iterations: int
     temperature: float
     guardrails: Dict[str, Any]
-    skills: List[str]
     schedule: Dict[str, Any]
+    interaction_rules: Dict[str, Any]
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -119,7 +122,7 @@ class ExecutionLogResponse(BaseModel):
     agent_name: str
     log_type: str
     content: str
-    metadata: Dict[str, Any]
+    extra_data: Dict[str, Any]
     timestamp: datetime
 
     class Config:
@@ -135,7 +138,7 @@ class MessageResponse(BaseModel):
     direction: str
     content: str
     is_read: bool
-    metadata: Dict[str, Any]
+    extra_data: Dict[str, Any]
     created_at: datetime
 
     class Config:

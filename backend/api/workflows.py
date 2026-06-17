@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
 
-from database import get_db
+from database import get_db, AsyncSessionLocal
 from models.workflow import Workflow
 from models.agent import Agent
 from models.execution import Execution, ExecutionLog
@@ -98,7 +98,7 @@ async def run_workflow(workflow_id: str, payload: RunWorkflowRequest, db: AsyncS
 
     await ws_manager.send_status(execution.id, "running")
 
-    runner = WorkflowRunner(wf, agents_map, ws_manager, db)
+    runner = WorkflowRunner(wf, agents_map, ws_manager, db, db_factory=AsyncSessionLocal)
     try:
         result = await runner.run(payload.input_message, execution.id)
         execution.status = "completed"
@@ -116,7 +116,7 @@ async def run_workflow(workflow_id: str, payload: RunWorkflowRequest, db: AsyncS
         execution_id=execution.id,
         log_type="message",
         content=execution.output_message,
-        metadata={"tokens": execution.total_tokens, "cost": execution.total_cost},
+        extra_data={"tokens": execution.total_tokens, "cost": execution.total_cost},
     )
     db.add(log)
     await db.commit()

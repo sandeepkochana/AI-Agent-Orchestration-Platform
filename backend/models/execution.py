@@ -30,5 +30,5 @@ class ExecutionLog(Base):
     agent_name: Mapped[str] = mapped_column(String(100), default="")
     log_type: Mapped[str] = mapped_column(String(30), default="message")  # message | tool_call | tool_result | error
     content: Mapped[str] = mapped_column(Text, default="")
-    metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    extra_data: Mapped[dict] = mapped_column(JSON, name="metadata", default=dict)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
