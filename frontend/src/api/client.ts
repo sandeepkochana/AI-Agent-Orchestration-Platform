@@ -11,6 +11,7 @@ export interface Agent {
   system_prompt: string
   model: string
   tools: string[]
+  skills: string[]
   channels: string[]
   memory_enabled: boolean
   max_iterations: number

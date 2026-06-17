@@ -130,6 +130,7 @@ Create agents with:
 - **Name, Role, System Prompt** — personality and purpose
 - **Model** — `gpt-4o-mini`, `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`
 - **Tools** — `web_search`, `calculator`, `http_request`, `get_current_datetime`
+- **Skills** — comma-separated capability tags (e.g. `summarization, code review, translation`) injected into the system prompt under a `## Skills` heading
 - **Channels** — `telegram`, `slack`
 - **Memory toggle** — persistent conversation history per thread
 - **Max iterations, temperature** — runtime controls
@@ -190,7 +191,7 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
-24 tests covering: agent schema validation, tool registry, calculator, datetime, WebSocket connect/disconnect/broadcast, workflow templates (including condition node structure), config, guardrail banned-topic blocking, guardrail token budget, interaction rule prompt injection, and condition node routing logic (including force-exit after max iterations).
+28 tests covering: agent schema validation, tool registry, calculator, datetime, WebSocket connect/disconnect/broadcast, workflow templates (including condition node structure), config, guardrail banned-topic blocking, guardrail token budget, skills injection and schema defaults, interaction rule prompt injection, and condition node routing logic (including force-exit after max iterations).
 
 ---
 

@@ -94,11 +94,16 @@ class AgentRunner:
     # ── Interaction Rules ──────────────────────────────────────────────────────
 
     def _build_system_prompt(self) -> str:
-        """Merge system_prompt with interaction_rules into a single prompt string."""
+        """Merge system_prompt with skills and interaction_rules into a single prompt string."""
         base = self.config.system_prompt or ""
+
+        # Inject skills as a capability declaration
+        skills = getattr(self.config, "skills", []) or []
+        if skills:
+            base += "\n\n## Skills\nYour skills include: " + ", ".join(skills) + "."
+
+        # Inject interaction rules
         rules = getattr(self.config, "interaction_rules", {}) or {}
-        if not rules:
-            return base
         additions = []
         fmt = rules.get("response_format")
         tone = rules.get("tone")

@@ -14,6 +14,7 @@ class Agent(Base):
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
     model: Mapped[str] = mapped_column(String(50), nullable=False, default="gpt-4o-mini")
     tools: Mapped[list] = mapped_column(JSON, default=list)          # ["web_search", "calculator", ...]
+    skills: Mapped[list] = mapped_column(JSON, default=list)         # ["summarization", "code review", ...] — descriptive capability tags injected into system prompt
     channels: Mapped[list] = mapped_column(JSON, default=list)       # ["telegram", "slack"]
     memory_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     max_iterations: Mapped[int] = mapped_column(default=10)

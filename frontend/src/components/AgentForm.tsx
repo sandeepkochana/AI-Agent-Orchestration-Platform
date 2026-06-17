@@ -16,7 +16,7 @@ const TONES = ['any', 'professional', 'casual', 'concise', 'detailed']
 
 const EMPTY: Partial<Agent> = {
   name: '', role: 'assistant', system_prompt: '', model: 'gpt-4o-mini',
-  tools: [], channels: [], memory_enabled: true, max_iterations: 10,
+  tools: [], skills: [], channels: [], memory_enabled: true, max_iterations: 10,
   temperature: 0.7, guardrails: {}, schedule: {}, interaction_rules: {},
 }
 
@@ -153,6 +153,24 @@ export default function AgentForm({ agent, onSave, onCancel }: Props) {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Skills */}
+      <div>
+        <label className="text-xs text-gray-400 block mb-1">
+          Skills <span className="text-gray-600">(comma-separated capability tags injected into system prompt)</span>
+        </label>
+        <input
+          className="input w-full mt-1"
+          value={((form.skills as string[]) || []).join(', ')}
+          onChange={e =>
+            setForm(f => ({
+              ...f,
+              skills: e.target.value.split(',').map(s => s.trim()).filter(Boolean),
+            }))
+          }
+          placeholder="e.g. summarization, code review, translation"
+        />
       </div>
 
       {/* Channels */}

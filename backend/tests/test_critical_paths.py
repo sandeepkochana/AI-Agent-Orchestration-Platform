@@ -25,6 +25,7 @@ async def test_agent_create_schema():
     )
     assert payload.name == "Test Agent"
     assert "calculator" in payload.tools
+    assert payload.skills == []
     assert payload.interaction_rules == {}
 
 
@@ -124,6 +125,7 @@ def _make_runner_with_config(**guardrail_kwargs):
     config.temperature = 0.7
     config.system_prompt = "You are a helpful assistant."
     config.tools = []
+    config.skills = []
     config.guardrails = guardrail_kwargs
     config.interaction_rules = {}
     with patch("runtime.engine.ChatOpenAI"), patch("runtime.engine.create_react_agent"):
@@ -163,6 +165,60 @@ def test_guardrail_no_budget_set():
     assert result is None
 
 
+# ─── Skills ──────────────────────────────────────────────────────────────────
+
+def _make_runner_with_skills(system_prompt="You are helpful.", skills=None):
+    from runtime.engine import AgentRunner
+    config = MagicMock()
+    config.model = "gpt-4o-mini"
+    config.temperature = 0.7
+    config.system_prompt = system_prompt
+    config.tools = []
+    config.skills = skills or []
+    config.guardrails = {}
+    config.interaction_rules = {}
+    with patch("runtime.engine.ChatOpenAI"), patch("runtime.engine.create_react_agent"):
+        runner = AgentRunner(config, ws_manager=None, db_session=None, db_factory=None)
+    return runner
+
+
+def test_skills_injected_into_system_prompt():
+    runner = _make_runner_with_skills("Base.", skills=["summarization", "code review"])
+    prompt = runner._build_system_prompt()
+    assert "Skills" in prompt
+    assert "summarization" in prompt
+    assert "code review" in prompt
+
+
+def test_skills_empty_list_not_injected():
+    runner = _make_runner_with_skills("Base.", skills=[])
+    prompt = runner._build_system_prompt()
+    assert "Skills" not in prompt
+    assert prompt == "Base."
+
+
+def test_skills_schema_defaults_to_empty():
+    from schemas import AgentCreate
+    payload = AgentCreate(
+        name="Test", role="assistant",
+        system_prompt="You are helpful.",
+        model="gpt-4o-mini", tools=[], channels=[],
+    )
+    assert payload.skills == []
+
+
+def test_skills_schema_accepts_list():
+    from schemas import AgentCreate
+    payload = AgentCreate(
+        name="Test", role="assistant",
+        system_prompt="You are helpful.",
+        model="gpt-4o-mini", tools=[], channels=[],
+        skills=["translation", "sentiment analysis"],
+    )
+    assert "translation" in payload.skills
+    assert "sentiment analysis" in payload.skills
+
+
 # ─── Interaction Rules ────────────────────────────────────────────────────────
 
 def _make_runner_with_rules(system_prompt="You are helpful.", **rules):
@@ -172,6 +228,7 @@ def _make_runner_with_rules(system_prompt="You are helpful.", **rules):
     config.temperature = 0.7
     config.system_prompt = system_prompt
     config.tools = []
+    config.skills = []
     config.guardrails = {}
     config.interaction_rules = rules
     with patch("runtime.engine.ChatOpenAI"), patch("runtime.engine.create_react_agent"):

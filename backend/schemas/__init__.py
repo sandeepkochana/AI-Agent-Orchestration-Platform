@@ -9,6 +9,7 @@ class AgentCreate(BaseModel):
     system_prompt: str
     model: str = "gpt-4o-mini"
     tools: List[str] = []
+    skills: List[str] = []
     channels: List[str] = []
     memory_enabled: bool = True
     max_iterations: int = 10
@@ -24,6 +25,7 @@ class AgentUpdate(BaseModel):
     system_prompt: Optional[str] = None
     model: Optional[str] = None
     tools: Optional[List[str]] = None
+    skills: Optional[List[str]] = None
     channels: Optional[List[str]] = None
     memory_enabled: Optional[bool] = None
     max_iterations: Optional[int] = None
@@ -41,6 +43,7 @@ class AgentResponse(BaseModel):
     system_prompt: str
     model: str
     tools: List[str]
+    skills: List[str]
     channels: List[str]
     memory_enabled: bool
     max_iterations: int

@@ -26,6 +26,7 @@ async def init_db():
         # Idempotent column migrations for SQLite (avoids needing Alembic for simple additions)
         for stmt in [
             "ALTER TABLE agents ADD COLUMN interaction_rules JSON DEFAULT '{}'",
+            "ALTER TABLE agents ADD COLUMN skills JSON DEFAULT '[]'",
         ]:
             try:
                 await conn.execute(text(stmt))
